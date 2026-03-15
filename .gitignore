@@ -2,7 +2,6 @@ node_modules/
 output/
 thumbnails/
 presets/
-ansorre-presets/
 *.log
 *.ppm
 *.jpg
@@ -10,10 +9,6 @@ ansorre-presets/
 *.mkv
 *.wav
 render-checkpoint.json
-console.log*
-concat.txt
-diag_frame*
-test_*.js
-poll*.js
-wait-output.js
 .prd
+.code-search/
+.milkvid-config.json
