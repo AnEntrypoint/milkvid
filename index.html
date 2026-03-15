@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>milkvid</title>
+<script type="importmap">{"imports":{"webjsx":"https://cdn.jsdelivr.net/npm/webjsx/dist/index.js"}}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d0d0d;color:#ccc;font-family:system-ui,sans-serif;min-height:100vh}
+nav{background:#111;border-bottom:1px solid #1a1a1a;padding:14px 24px;display:flex;align-items:center;gap:12px}
+nav h1{font-size:16px;color:#fff}
+nav a{margin-left:auto;color:#6dbf7e;text-decoration:none;font-size:13px}
+.hero{padding:60px 24px 40px;max-width:720px;margin:0 auto;text-align:center}
+.hero h2{font-size:32px;color:#fff;margin-bottom:16px}
+.hero p{font-size:15px;color:#888;line-height:1.7;max-width:560px;margin:0 auto}
+.downloads{padding:40px 24px;max-width:720px;margin:0 auto}
+.downloads h3{font-size:14px;color:#555;letter-spacing:2px;text-transform:uppercase;margin-bottom:20px;border-bottom:1px solid #1a1a1a;padding-bottom:10px}
+.dl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.dl-btn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:20px;background:#111;border:1px solid #222;border-radius:6px;text-decoration:none;color:#eee;transition:border-color .15s}
+.dl-btn:hover{border-color:#3a7d44}
+.dl-btn .os{font-size:22px}
+.dl-btn .name{font-size:13px;font-weight:600}
+.dl-btn .size{font-size:11px;color:#555}
+.info{padding:0 24px 60px;max-width:720px;margin:0 auto}
+.info h3{font-size:14px;color:#555;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;border-bottom:1px solid #1a1a1a;padding-bottom:10px}
+.steps{list-style:none;display:flex;flex-direction:column;gap:10px}
+.steps li{font-size:14px;color:#888;padding:12px 16px;background:#111;border-radius:4px;border-left:3px solid #3a7d44}
+.steps code{color:#6dbf7e;background:#0a1a0f;padding:1px 5px;border-radius:3px;font-size:13px}
+#version{font-size:11px;color:#555;margin-top:8px;text-align:center}
+</style>
+</head>
+<body>
+<nav>
+  <h1>milkvid</h1>
+  <a href="https://github.com/AnEntrypoint/milkvid" target="_blank">GitHub</a>
+</nav>
+<div class="hero">
+  <h2>Milkdrop visualizer video renderer</h2>
+  <p>Turn any Milkdrop preset into a music video. Pick a preset from 16,000+ visuals, drop in a WAV file, and render a high-quality MP4 — all from your browser.</p>
+  <div id="version"></div>
+</div>
+<div class="downloads">
+  <h3>Download</h3>
+  <div class="dl-grid" id="dl-grid">
+    <div style="color:#555;font-size:13px">Loading latest release…</div>
+  </div>
+</div>
+<div class="info">
+  <h3>Getting started</h3>
+  <ol class="steps">
+    <li>Download the binary for your platform</li>
+    <li>Place <code>presets/</code> and <code>thumbnails/</code> directories alongside the binary</li>
+    <li>Run the binary — a browser window opens automatically</li>
+    <li>Pick a preset, drop in a WAV file, hit Render</li>
+  </ol>
+</div>
+<script type="module">
+import { createElement, applyDiff } from 'webjsx';
+function h(tag, props, ...kids) { return createElement(tag, props, ...kids); }
+
+var REPO = 'AnEntrypoint/milkvid';
+var PLATFORMS = [
+  { key: 'windows', icon: '🪟', label: 'Windows x64', suffix: 'windows.exe' },
+  { key: 'linux',   icon: '🐧', label: 'Linux x64',   suffix: 'linux' },
+  { key: 'macos',   icon: '🍎', label: 'macOS arm64', suffix: 'macos' }
+];
+
+fetch('https://api.github.com/repos/' + REPO + '/releases/latest')
+  .then(function(r) { return r.json(); })
+  .then(function(release) {
+    document.getElementById('version').textContent = 'Latest: ' + release.tag_name;
+    var assets = release.assets || [];
+    var buttons = PLATFORMS.map(function(p) {
+      var asset = assets.find(function(a) { return a.name.endsWith(p.suffix); });
+      if (!asset) return h('div', { class: 'dl-btn', style: 'opacity:.4;cursor:default' },
+        h('span', { class: 'os' }, p.icon),
+        h('span', { class: 'name' }, p.label),
+        h('span', { class: 'size' }, 'not available')
+      );
+      var mb = (asset.size / 1024 / 1024).toFixed(1) + ' MB';
+      return h('a', { class: 'dl-btn', href: asset.browser_download_url, download: asset.name },
+        h('span', { class: 'os' }, p.icon),
+        h('span', { class: 'name' }, p.label),
+        h('span', { class: 'size' }, mb)
+      );
+    });
+    applyDiff(document.getElementById('dl-grid'), h('div', { class: 'dl-grid' }, ...buttons));
+  })
+  .catch(function() {
+    document.getElementById('dl-grid').textContent = 'See GitHub releases for downloads.';
+  });
+</script>
+</body>
+</html>
