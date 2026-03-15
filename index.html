@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>milkvid</title>
+<script type="importmap">{"imports":{"webjsx":"https://cdn.jsdelivr.net/npm/webjsx/dist/index.js","webjsx/jsx-runtime":"https://cdn.jsdelivr.net/npm/webjsx/dist/jsx-runtime.js"}}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d0d0d;color:#ccc;font-family:system-ui,sans-serif;height:100vh;display:flex;flex-direction:column}
+header{background:#111;border-bottom:1px solid #222;padding:10px 16px;display:flex;align-items:center;gap:12px}
+h1{font-size:15px;color:#fff;white-space:nowrap}
+#search{flex:1;background:#1a1a1a;border:1px solid #333;border-radius:4px;color:#eee;padding:6px 10px;font-size:13px;outline:none}
+#search:focus{border-color:#555}
+.cols{display:flex;flex:1;overflow:hidden}
+.left{width:320px;min-width:240px;border-right:1px solid #1a1a1a;display:flex;flex-direction:column;padding:16px;gap:12px;overflow-y:auto}
+.right{flex:1;overflow-y:auto;padding:12px}
+label{font-size:12px;color:#888;display:block;margin-bottom:4px}
+input[type=text],input[type=file]{width:100%;background:#1a1a1a;border:1px solid #333;border-radius:4px;color:#eee;padding:7px 10px;font-size:13px;outline:none}
+input[type=text]:focus{border-color:#555}
+#drop-zone{border:2px dashed #333;border-radius:6px;padding:20px;text-align:center;font-size:12px;color:#555;cursor:pointer;transition:border-color .15s}
+#drop-zone.over,#drop-zone:hover{border-color:#555;color:#888}
+#drop-zone.ok{border-color:#3a7d44;color:#6dbf7e}
+button{width:100%;padding:10px;background:#2a6e3a;border:none;border-radius:4px;color:#fff;font-size:14px;cursor:pointer;transition:background .15s}
+button:hover{background:#357d47}
+button:disabled{background:#1a3d22;color:#555;cursor:not-allowed}
+.progress-wrap{background:#1a1a1a;border-radius:4px;height:8px;overflow:hidden}
+.progress-bar{height:100%;background:#3a7d44;transition:width .3s}
+.status-line{font-size:12px;color:#777;margin-top:4px}
+.dl-link{display:block;padding:10px;background:#1a3d22;border-radius:4px;color:#6dbf7e;text-align:center;text-decoration:none;font-size:13px}
+.dl-link:hover{background:#254d2d}
+.error-msg{color:#c66;font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:5px}
+.card{position:relative;cursor:pointer;border-radius:3px;overflow:hidden;background:#111;border:2px solid transparent;transition:transform .1s}
+.card:hover{transform:scale(1.02)}
+.card.sel{border-color:#3a7d44}
+.card img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.card .lbl{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.85));padding:14px 5px 4px;font-size:10px;color:#bbb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hidden{display:none!important}
+.section-hdr{font-size:11px;color:#444;letter-spacing:2px;text-transform:uppercase;padding:10px 0 5px;border-bottom:1px solid #1a1a1a;margin-bottom:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>milkvid</h1>
+  <input id="search" type="search" placeholder="filter presets…" autocomplete="off">
+  <span id="count" style="font-size:12px;color:#555;white-space:nowrap"></span>
+</header>
+<div class="cols">
+  <div class="left">
+    <div>
+      <label>Audio file (WAV)</label>
+      <div id="drop-zone">Drop WAV here or click to browse
+        <input type="file" accept=".wav,audio/wav" style="display:none" id="audio-input">
+      </div>
+      <div id="audio-name" style="font-size:11px;color:#666;margin-top:4px"></div>
+    </div>
+    <div>
+      <label>Output name</label>
+      <input type="text" id="out-name" placeholder="auto from preset">
+    </div>
+    <div id="selected-preset" style="font-size:12px;color:#666">No preset selected</div>
+    <button id="render-btn" disabled>Render</button>
+    <div id="progress-section" class="hidden">
+      <div class="progress-wrap"><div class="progress-bar" id="pbar" style="width:0%"></div></div>
+      <div class="status-line" id="status-line">Starting…</div>
+    </div>
+    <div id="dl-section" class="hidden"></div>
+    <div id="err-msg" class="error-msg hidden"></div>
+  </div>
+  <div class="right" id="grid-root"></div>
+</div>
+<script type="module">
+import { createElement, applyDiff } from 'webjsx';
+
+var state = { presets: [], filter: '', selected: null, audioFile: null, rendering: false, pct: 0, fps: 0, eta: 0, done: false, dlFile: null, error: null };
+var es = null;
+
+function h(tag, props, ...kids) { return createElement(tag, props, ...kids); }
+
+function renderGrid() {
+  var q = state.filter.toLowerCase();
+  var visible = state.presets.filter(function(p) { return !q || p.toLowerCase().includes(q); });
+  document.getElementById('count').textContent = q ? (visible.length + ' / ' + state.presets.length) : (state.presets.length + ' presets');
+
+  var groups = {};
+  visible.forEach(function(p) { var k = /^[A-Za-z]/.test(p) ? p[0].toUpperCase() : '#'; if (!groups[k]) groups[k] = []; groups[k].push(p); });
+  var keys = Object.keys(groups).sort(function(a,b){ return a==='#'?-1:b==='#'?1:a.localeCompare(b); });
+
+  var vdom = h('div', null, ...keys.map(function(k) {
+    return h('div', { key: k },
+      h('div', { class: 'section-hdr' }, k),
+      h('div', { class: 'grid' }, ...groups[k].map(function(p) {
+        var safe = p.replace(/"/g, '&quot;');
+        return h('div', { class: 'card' + (state.selected === p ? ' sel' : ''), 'data-preset': p, key: p },
+          h('img', { loading: 'lazy', src: '/thumb/' + encodeURIComponent(p + '.jpg'), alt: '' }),
+          h('div', { class: 'lbl' }, p)
+        );
+      }))
+    );
+  }));
+  applyDiff(document.getElementById('grid-root'), vdom);
+}
+
+function updateSidebar() {
+  document.getElementById('render-btn').disabled = !(state.selected && state.audioFile && !state.rendering);
+  document.getElementById('selected-preset').textContent = state.selected ? 'Preset: ' + state.selected : 'No preset selected';
+  document.getElementById('progress-section').className = state.rendering || state.done ? '' : 'hidden';
+  document.getElementById('pbar').style.width = state.pct + '%';
+  document.getElementById('status-line').textContent = state.rendering
+    ? (state.pct.toFixed(1) + '% | ' + state.fps.toFixed(1) + ' fps | ETA ' + state.eta.toFixed(2) + 'hr') : (state.done ? 'Complete!' : '');
+  var dlSec = document.getElementById('dl-section');
+  if (state.dlFile) { dlSec.className = ''; applyDiff(dlSec, h('a', { class: 'dl-link', href: '/api/download/' + encodeURIComponent(state.dlFile), download: state.dlFile }, 'Download ' + state.dlFile)); }
+  else dlSec.className = 'hidden';
+  var errEl = document.getElementById('err-msg');
+  if (state.error) { errEl.className = 'error-msg'; errEl.textContent = state.error; } else errEl.className = 'error-msg hidden';
+}
+
+function connectSSE() {
+  if (es) es.close();
+  es = new EventSource('/api/status');
+  es.onmessage = function(e) {
+    var d = JSON.parse(e.data);
+    if (d.type === 'progress') { state.pct = d.pct; state.fps = d.fps; state.eta = d.eta; state.rendering = true; updateSidebar(); }
+    else if (d.type === 'done') { state.rendering = false; state.done = true; state.dlFile = d.file; state.pct = 100; updateSidebar(); }
+    else if (d.type === 'error') { state.rendering = false; state.error = d.error; updateSidebar(); }
+  };
+  es.onerror = function() { setTimeout(connectSSE, 3000); };
+}
+
+document.getElementById('search').addEventListener('input', function(e) { state.filter = e.target.value; renderGrid(); });
+document.getElementById('grid-root').addEventListener('click', function(e) {
+  var card = e.target.closest('.card');
+  if (!card) return;
+  state.selected = card.dataset.preset;
+  renderGrid(); updateSidebar();
+});
+var dz = document.getElementById('drop-zone');
+dz.addEventListener('click', function() { document.getElementById('audio-input').click(); });
+dz.addEventListener('dragover', function(e) { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', function() { dz.classList.remove('over'); });
+dz.addEventListener('drop', function(e) { e.preventDefault(); dz.classList.remove('over'); handleFile(e.dataTransfer.files[0]); });
+document.getElementById('audio-input').addEventListener('change', function(e) { handleFile(e.target.files[0]); });
+function handleFile(f) {
+  if (!f || !f.name.toLowerCase().endsWith('.wav')) { state.error = 'Must be a .wav file'; updateSidebar(); return; }
+  state.audioFile = f; state.error = null;
+  dz.classList.add('ok'); dz.querySelector('input').parentNode;
+  document.getElementById('audio-name').textContent = f.name + ' (' + (f.size/1024/1024).toFixed(1) + ' MB)';
+  updateSidebar();
+}
+document.getElementById('render-btn').addEventListener('click', function() {
+  if (!state.selected || !state.audioFile || state.rendering) return;
+  state.rendering = true; state.done = false; state.dlFile = null; state.error = null; state.pct = 0;
+  updateSidebar();
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64 = e.target.result.split(',')[1];
+    var outName = document.getElementById('out-name').value.trim() || state.selected;
+    fetch('/api/render', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preset: state.selected, audioBase64: b64, output: outName }) })
+      .then(function(r) { return r.json(); })
+      .then(function(d) { if (d.error) { state.rendering = false; state.error = d.error; updateSidebar(); } })
+      .catch(function(e) { state.rendering = false; state.error = String(e); updateSidebar(); });
+  };
+  reader.readAsDataURL(state.audioFile);
+});
+
+fetch('/api/presets').then(function(r) { return r.json(); }).then(function(list) {
+  state.presets = list.sort();
+  renderGrid(); updateSidebar();
+});
+connectSSE();
+</script>
+</body>
+</html>

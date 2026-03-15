@@ -1,9 +1,9 @@
 {
   "name": "milkvid",
   "version": "1.0.0",
-  "main": "milkvid.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node milkvid.js",
+    "start": "node server.js",
     "render": "node render-preset.js",
     "preview": "node build-preview.js && start preview.html"
   },
