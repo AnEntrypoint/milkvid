@@ -116,13 +116,13 @@ async function main() {
   });
 
   ffprocRef.proc = spawn('ffmpeg', [
-    '-y','-f','h264',
-    '-video_size',WIDTH+'x'+HEIGHT,'-r',String(FPS),
+    '-y','-f','h264','-r',String(FPS),
     '-i','pipe:0',
     '-i',AUDIO_FILE,
     '-c:v','copy','-c:a','aac','-b:a','192k','-shortest',
     mkvTarget
   ]);
+  ffprocRef.proc.stdin.setMaxListeners(0);
   ffprocRef.proc.stderr.on('data', function(d){ var s=d.toString(); if(s.includes('frame=')||s.includes('rror')||s.includes('dimension')) process.stderr.write(s); });
   var ffDone = new Promise(function(res,rej){ ffprocRef.proc.on('close',function(c){c===0?res():rej(new Error('ffmpeg exit '+c));}); });
 

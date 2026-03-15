@@ -4,7 +4,33 @@ module.exports = function buildPage(port, w, h, fps, spf, presetJson, bitrate) {
   var script = `
 window._viz=null; window._enc=null; window._waveBuf=null; window._init=false; window._encErr=null;
 window._segStats={spinMs:0,chunks:0,chunkBytes:0};
-window._decoderConfig=null;
+window._spsNals=null; window._ppsNals=null;
+
+function avccToAnnexB(data) {
+  var out=[], i=0;
+  while(i+4<=data.length) {
+    var len=(data[i]<<24|data[i+1]<<16|data[i+2]<<8|data[i+3])>>>0;
+    i+=4;
+    if(len===0||i+len>data.length) break;
+    out.push(0,0,0,1);
+    for(var j=0;j<len;j++) out.push(data[i+j]);
+    i+=len;
+  }
+  return new Uint8Array(out);
+}
+
+function parseDecoderConfig(desc) {
+  var d=new Uint8Array(desc);
+  var spsList=[], ppsList=[], i=5;
+  var numSps=d[i++]&0x1f;
+  for(var s=0;s<numSps;s++){var l=(d[i]<<8|d[i+1]);i+=2;spsList.push(d.slice(i,i+l));i+=l;}
+  var numPps=d[i++];
+  for(var p=0;p<numPps;p++){var l=(d[i]<<8|d[i+1]);i+=2;ppsList.push(d.slice(i,i+l));i+=l;}
+  var out=[];
+  spsList.forEach(function(n){out.push(0,0,0,1);n.forEach(function(b){out.push(b);});});
+  ppsList.forEach(function(n){out.push(0,0,0,1);n.forEach(function(b){out.push(b);});});
+  return new Uint8Array(out);
+}
 
 window.initRender = async function() {
   if(window._init) return true;
@@ -22,13 +48,17 @@ window.initRender = async function() {
   window._enc=new VideoEncoder({
     output: async function(chunk, meta) {
       var b=new Uint8Array(chunk.byteLength); chunk.copyTo(b);
-      if(meta && meta.decoderConfig && meta.decoderConfig.description)
-        window._decoderConfig=new Uint8Array(meta.decoderConfig.description);
-      var payload=b;
-      if(chunk.type==='key' && window._decoderConfig) {
-        var combined=new Uint8Array(window._decoderConfig.length+b.length);
-        combined.set(window._decoderConfig,0); combined.set(b,window._decoderConfig.length);
-        payload=combined;
+      var annexB=avccToAnnexB(b);
+      var payload=annexB;
+      if(chunk.type==='key') {
+        if(meta && meta.decoderConfig && meta.decoderConfig.description) {
+          window._spsNals=parseDecoderConfig(meta.decoderConfig.description);
+        }
+        if(window._spsNals) {
+          var combined=new Uint8Array(window._spsNals.length+annexB.length);
+          combined.set(window._spsNals,0); combined.set(annexB,window._spsNals.length);
+          payload=combined;
+        }
       }
       window._segStats.chunks++; window._segStats.chunkBytes+=payload.length;
       try {
