@@ -1,10 +1,7 @@
 node_modules/
 output/
-thumbnails/
-presets/
 *.log
 *.ppm
-*.jpg
 *.mp4
 *.mkv
 *.wav
