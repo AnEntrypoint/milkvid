@@ -1,93 +1,352 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>milkvid</title>
-<script type="importmap">{"imports":{"webjsx":"https://cdn.jsdelivr.net/npm/webjsx/dist/index.js"}}</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>milkvid — Milkdrop visualizer video renderer</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#0d0d0d;color:#ccc;font-family:system-ui,sans-serif;min-height:100vh}
-nav{background:#111;border-bottom:1px solid #1a1a1a;padding:14px 24px;display:flex;align-items:center;gap:12px}
-nav h1{font-size:16px;color:#fff}
-nav a{margin-left:auto;color:#6dbf7e;text-decoration:none;font-size:13px}
-.hero{padding:60px 24px 40px;max-width:720px;margin:0 auto;text-align:center}
-.hero h2{font-size:32px;color:#fff;margin-bottom:16px}
-.hero p{font-size:15px;color:#888;line-height:1.7;max-width:560px;margin:0 auto}
-.downloads{padding:40px 24px;max-width:720px;margin:0 auto}
-.downloads h3{font-size:14px;color:#555;letter-spacing:2px;text-transform:uppercase;margin-bottom:20px;border-bottom:1px solid #1a1a1a;padding-bottom:10px}
-.dl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
-.dl-btn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:20px;background:#111;border:1px solid #222;border-radius:6px;text-decoration:none;color:#eee;transition:border-color .15s}
-.dl-btn:hover{border-color:#3a7d44}
-.dl-btn .os{font-size:22px}
+:root{--green:#3a7d44;--green-light:#6dbf7e;--green-dim:#1a3d22;--bg:#0a0a0a;--bg2:#111;--bg3:#161616;--border:#1e1e1e;--text:#ccc;--text-dim:#666;--text-muted:#444}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;line-height:1.6}
+a{color:var(--green-light);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:ui-monospace,monospace;font-size:.9em;background:#0d1f12;color:var(--green-light);padding:1px 6px;border-radius:3px}
+
+/* Nav */
+nav{position:sticky;top:0;z-index:100;background:rgba(10,10,10,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;gap:16px}
+.nav-logo{font-size:17px;font-weight:700;color:#fff;letter-spacing:-.3px}
+.nav-logo span{color:var(--green-light)}
+.nav-links{margin-left:auto;display:flex;gap:20px;align-items:center}
+.nav-links a{font-size:13px;color:var(--text-dim)}
+.nav-links a:hover{color:var(--text);text-decoration:none}
+.nav-gh{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-size:12px;color:var(--text)!important;display:flex;align-items:center;gap:6px}
+.nav-gh:hover{border-color:var(--green);color:var(--green-light)!important}
+
+/* Hero */
+.hero{position:relative;overflow:hidden;padding:100px 32px 80px;text-align:center}
+.hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(58,125,68,.18) 0%,transparent 70%);pointer-events:none}
+.hero-orbs{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:.12;animation:drift 12s ease-in-out infinite alternate}
+.orb1{width:500px;height:500px;background:#3a7d44;top:-20%;left:-10%;animation-delay:0s}
+.orb2{width:400px;height:400px;background:#1a5c8a;top:10%;right:-5%;animation-delay:-4s}
+.orb3{width:300px;height:300px;background:#6b3a7d;bottom:-10%;left:30%;animation-delay:-8s}
+@keyframes drift{0%{transform:translate(0,0) scale(1)}100%{transform:translate(30px,20px) scale(1.1)}}
+.badge{display:inline-flex;align-items:center;gap:6px;background:var(--green-dim);border:1px solid rgba(109,191,126,.25);border-radius:20px;padding:4px 14px;font-size:12px;color:var(--green-light);margin-bottom:24px;letter-spacing:.3px}
+.badge-dot{width:6px;height:6px;background:var(--green-light);border-radius:50%;box-shadow:0 0 6px var(--green-light)}
+h1{font-size:clamp(36px,6vw,64px);font-weight:800;color:#fff;letter-spacing:-1.5px;line-height:1.1;margin-bottom:20px}
+h1 em{font-style:normal;background:linear-gradient(135deg,var(--green-light),#5ab8e8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{font-size:clamp(15px,2vw,18px);color:var(--text-dim);max-width:560px;margin:0 auto 40px;line-height:1.7}
+.hero-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;border:none}
+.btn-primary{background:var(--green);color:#fff}
+.btn-primary:hover{background:#4a9e58;text-decoration:none;transform:translateY(-1px);box-shadow:0 8px 24px rgba(58,125,68,.35)}
+.btn-secondary{background:var(--bg2);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{border-color:var(--green);color:var(--green-light);text-decoration:none}
+
+/* Demo window */
+.demo-wrap{max-width:800px;margin:72px auto 0;padding:0 32px}
+.demo-window{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.6)}
+.demo-bar{background:#161616;border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:8px}
+.demo-dot{width:11px;height:11px;border-radius:50%}
+.demo-bar span{flex:1;text-align:center;font-size:11px;color:var(--text-muted)}
+.demo-body{display:grid;grid-template-columns:200px 1fr;min-height:220px}
+.demo-side{border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:10px}
+.demo-label{font-size:10px;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:2px}
+.demo-input{background:#0d0d0d;border:1px solid #2a2a2a;border-radius:4px;padding:7px 10px;font-size:11px;color:#888;display:flex;align-items:center;gap:6px}
+.demo-input-ok{border-color:var(--green)!important;color:var(--green-light)!important}
+.demo-progress{background:#1a1a1a;border-radius:3px;height:6px;overflow:hidden;margin-top:4px}
+.demo-pbar{height:100%;background:linear-gradient(90deg,var(--green),var(--green-light));width:73%;border-radius:3px}
+.demo-stat{font-size:10px;color:var(--text-muted);margin-top:4px}
+.demo-render-btn{background:var(--green);border:none;border-radius:4px;color:#fff;padding:8px;font-size:12px;font-weight:600;cursor:pointer;text-align:center;margin-top:auto}
+.demo-grid{padding:12px;overflow:hidden;display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:4px;align-content:start}
+.demo-card{background:#1a1a1a;border-radius:3px;aspect-ratio:4/3;border:2px solid transparent;position:relative;overflow:hidden}
+.demo-card.selected{border-color:var(--green)}
+.demo-card-inner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:#333}
+.vis-glow{background:radial-gradient(circle at 50% 50%,rgba(109,191,126,.35),rgba(90,184,232,.2),transparent);width:100%;height:100%}
+.vis-glow2{background:radial-gradient(circle at 30% 60%,rgba(107,58,125,.4),rgba(58,125,68,.2),transparent);width:100%;height:100%}
+.vis-glow3{background:radial-gradient(circle at 70% 40%,rgba(90,184,232,.4),rgba(58,125,68,.15),transparent);width:100%;height:100%}
+.vis-glow4{background:radial-gradient(circle at 50% 50%,rgba(255,140,60,.3),rgba(58,125,68,.1),transparent);width:100%;height:100%}
+.vis-glow5{background:radial-gradient(circle at 60% 30%,rgba(232,90,150,.35),rgba(90,184,232,.15),transparent);width:100%;height:100%}
+.vis-glow6{background:radial-gradient(circle at 40% 70%,rgba(109,191,126,.4),rgba(255,200,60,.15),transparent);width:100%;height:100%}
+
+/* Features */
+.section{padding:80px 32px;max-width:960px;margin:0 auto}
+.section-label{font-size:11px;color:var(--green-light);letter-spacing:3px;text-transform:uppercase;margin-bottom:12px}
+.section-title{font-size:clamp(24px,4vw,36px);font-weight:700;color:#fff;letter-spacing:-.5px;margin-bottom:16px}
+.section-sub{font-size:15px;color:var(--text-dim);max-width:560px;margin-bottom:48px;line-height:1.7}
+.features-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.feature-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:24px;transition:border-color .2s}
+.feature-card:hover{border-color:rgba(58,125,68,.5)}
+.feature-icon{font-size:28px;margin-bottom:14px}
+.feature-title{font-size:15px;font-weight:600;color:#fff;margin-bottom:6px}
+.feature-desc{font-size:13px;color:var(--text-dim);line-height:1.6}
+
+/* How it works */
+.how-wrap{background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.flow{display:flex;flex-direction:column;gap:0}
+.flow-step{display:flex;align-items:flex-start;gap:20px;padding:28px 0;border-bottom:1px solid var(--border)}
+.flow-step:last-child{border-bottom:none}
+.flow-num{flex-shrink:0;width:36px;height:36px;background:var(--green-dim);border:1px solid rgba(109,191,126,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--green-light)}
+.flow-content h4{font-size:15px;font-weight:600;color:#fff;margin-bottom:4px}
+.flow-content p{font-size:13px;color:var(--text-dim);line-height:1.6}
+.tech-pill{display:inline-block;background:#0d1a10;border:1px solid rgba(58,125,68,.3);border-radius:4px;padding:1px 8px;font-size:11px;color:var(--green-light);margin:2px}
+
+/* Downloads */
+.dl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.dl-btn{display:flex;flex-direction:column;align-items:center;gap:8px;padding:24px 20px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;color:var(--text);transition:all .2s;cursor:pointer}
+.dl-btn:hover{border-color:var(--green);background:#0f1f13;color:#fff;text-decoration:none;transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.dl-btn .os{font-size:28px}
 .dl-btn .name{font-size:13px;font-weight:600}
-.dl-btn .size{font-size:11px;color:#555}
-.info{padding:0 24px 60px;max-width:720px;margin:0 auto}
-.info h3{font-size:14px;color:#555;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;border-bottom:1px solid #1a1a1a;padding-bottom:10px}
-.steps{list-style:none;display:flex;flex-direction:column;gap:10px}
-.steps li{font-size:14px;color:#888;padding:12px 16px;background:#111;border-radius:4px;border-left:3px solid #3a7d44}
-.steps code{color:#6dbf7e;background:#0a1a0f;padding:1px 5px;border-radius:3px;font-size:13px}
-#version{font-size:11px;color:#555;margin-top:8px;text-align:center}
+.dl-btn .size{font-size:11px;color:var(--text-muted)}
+#dl-version{font-size:12px;color:var(--text-muted);margin-bottom:24px}
+
+/* Getting started */
+.steps-list{display:flex;flex-direction:column;gap:8px;margin-bottom:32px}
+.step{display:flex;gap:16px;align-items:flex-start;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px 20px}
+.step-n{flex-shrink:0;width:24px;height:24px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;margin-top:1px}
+.step-text{font-size:14px;color:var(--text-dim);line-height:1.5}
+.step-text strong{color:var(--text);display:block;margin-bottom:2px}
+pre{background:#0d0d0d;border:1px solid var(--border);border-radius:8px;padding:20px 24px;font-size:13px;color:#a8d8b0;overflow-x:auto;line-height:1.7;font-family:ui-monospace,monospace}
+pre .dim{color:var(--text-muted)}
+
+/* Footer */
+footer{border-top:1px solid var(--border);padding:32px;text-align:center;font-size:12px;color:var(--text-muted)}
+footer a{color:var(--text-dim)}
+footer a:hover{color:var(--green-light)}
+.divider{border:none;border-top:1px solid var(--border);margin:0}
+@media(max-width:600px){nav{padding:12px 16px}.nav-links{gap:12px}.section{padding:56px 16px}.hero{padding:72px 16px 56px}.demo-wrap{padding:0 16px}.demo-body{grid-template-columns:1fr}.demo-side{border-right:none;border-bottom:1px solid var(--border)}}
 </style>
 </head>
 <body>
+
 <nav>
-  <h1>milkvid</h1>
-  <a href="https://github.com/AnEntrypoint/milkvid" target="_blank">GitHub</a>
+  <div class="nav-logo">milk<span>vid</span></div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#how-it-works">How it works</a>
+    <a href="#download">Download</a>
+    <a href="https://github.com/AnEntrypoint/milkvid" class="nav-gh" target="_blank">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub
+    </a>
+  </div>
 </nav>
-<div class="hero">
-  <h2>Milkdrop visualizer video renderer</h2>
-  <p>Turn any Milkdrop preset into a music video. Pick a preset from 16,000+ visuals, drop in a WAV file, and render a high-quality MP4 — all from your browser.</p>
-  <div id="version"></div>
-</div>
-<div class="downloads">
-  <h3>Download</h3>
-  <div class="dl-grid" id="dl-grid">
-    <div style="color:#555;font-size:13px">Loading latest release…</div>
+
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-orbs">
+    <div class="orb orb1"></div>
+    <div class="orb orb2"></div>
+    <div class="orb orb3"></div>
+  </div>
+  <div class="badge"><span class="badge-dot"></span>Open Source · Node.js · GPU-accelerated</div>
+  <h1>Turn music into<br><em>Milkdrop video</em></h1>
+  <p class="hero-sub">Pick from 16,000+ psychedelic Milkdrop presets, drop in a WAV file, and render a stunning H.264 music video at 200+ fps — all in your browser.</p>
+  <div class="hero-cta">
+    <a href="#download" class="btn btn-primary">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M7.47 10.78a.75.75 0 001.06 0l3.75-3.75a.75.75 0 00-1.06-1.06L8.75 8.44V1.75a.75.75 0 00-1.5 0v6.69L4.78 5.97a.75.75 0 00-1.06 1.06l3.75 3.75zM3.75 13a.75.75 0 000 1.5h8.5a.75.75 0 000-1.5h-8.5z"/></svg>
+      Download
+    </a>
+    <a href="https://github.com/AnEntrypoint/milkvid" class="btn btn-secondary" target="_blank">View on GitHub</a>
+  </div>
+</section>
+
+<div class="demo-wrap">
+  <div class="demo-window">
+    <div class="demo-bar">
+      <div class="demo-dot" style="background:#ff5f56"></div>
+      <div class="demo-dot" style="background:#ffbd2e"></div>
+      <div class="demo-dot" style="background:#27c93f"></div>
+      <span>milkvid — preset browser</span>
+    </div>
+    <div class="demo-body">
+      <div class="demo-side">
+        <div>
+          <div class="demo-label">Audio file</div>
+          <div class="demo-input demo-input-ok">
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 1.5a5.5 5.5 0 110 11 5.5 5.5 0 010-11zM8 6a2 2 0 110 4A2 2 0 018 6z"/></svg>
+            synth_wave.wav
+          </div>
+        </div>
+        <div>
+          <div class="demo-label">Selected preset</div>
+          <div class="demo-input" style="font-size:10px;color:var(--green-light)">Aderrasi - Aimless</div>
+        </div>
+        <div>
+          <div class="demo-progress"><div class="demo-pbar"></div></div>
+          <div class="demo-stat">73.2% · 204 fps · ETA 0.04hr</div>
+        </div>
+        <div class="demo-render-btn">Rendering…</div>
+      </div>
+      <div class="demo-grid">
+        <div class="demo-card selected"><div class="demo-card-inner"><div class="vis-glow"></div></div></div>
+        <div class="demo-card"><div class="demo-card-inner"><div class="vis-glow2"></div></div></div>
+        <div class="demo-card"><div class="demo-card-inner"><div class="vis-glow3"></div></div></div>
+        <div class="demo-card"><div class="demo-card-inner"><div class="vis-glow4"></div></div></div>
+        <div class="demo-card"><div class="demo-card-inner"><div class="vis-glow5"></div></div></div>
+        <div class="demo-card"><div class="demo-card-inner"><div class="vis-glow6"></div></div></div>
+        <div class="demo-card"><div class="demo-card-inner"><div class="vis-glow2"></div></div></div>
+        <div class="demo-card"><div class="demo-card-inner"><div class="vis-glow3"></div></div></div>
+        <div class="demo-card"><div class="demo-card-inner"><div class="vis-glow"></div></div></div>
+        <div class="demo-card"><div class="demo-card-inner"><div class="vis-glow4"></div></div></div>
+        <div class="demo-card"><div class="demo-card-inner"><div class="vis-glow5"></div></div></div>
+        <div class="demo-card"><div class="demo-card-inner"><div class="vis-glow6"></div></div></div>
+      </div>
+    </div>
   </div>
 </div>
-<div class="info">
-  <h3>Getting started</h3>
-  <ol class="steps">
-    <li>Download the binary for your platform</li>
-    <li>Place <code>presets/</code> and <code>thumbnails/</code> directories alongside the binary</li>
-    <li>Run the binary — a browser window opens automatically</li>
-    <li>Pick a preset, drop in a WAV file, hit Render</li>
-  </ol>
-</div>
-<script type="module">
-import { createElement, applyDiff } from 'webjsx';
-function h(tag, props, ...kids) { return createElement(tag, props, ...kids); }
 
+<hr class="divider" style="margin-top:72px">
+
+<section class="section" id="features">
+  <div class="section-label">Features</div>
+  <h2 class="section-title">Everything you need to make visualizer videos</h2>
+  <p class="section-sub">Built on battle-tested open source tech for maximum quality and speed.</p>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">🎨</div>
+      <div class="feature-title">16,000+ Milkdrop presets</div>
+      <div class="feature-desc">Browse the full butterchurn preset library with a searchable thumbnail grid. Every classic and community preset, instantly findable.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <div class="feature-title">GPU-accelerated rendering</div>
+      <div class="feature-desc">Runs butterchurn in a headless Chromium via WebGL2 + ANGLE. Hits 200+ fps on a modern GPU — 6–7× faster than realtime.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎬</div>
+      <div class="feature-title">WebCodecs H.264 encoding</div>
+      <div class="feature-desc">Frames are encoded in-browser using the WebCodecs VideoEncoder API with hardware H.264, streamed directly to Node without any intermediate files.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔊</div>
+      <div class="feature-title">Audio-synced visuals</div>
+      <div class="feature-desc">FFT analysis drives the Milkdrop beat detection. Drop in a WAV file and the visualization pulses, morphs, and reacts to every beat.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📦</div>
+      <div class="feature-title">Zero-friction output</div>
+      <div class="feature-desc">ffmpeg muxes the encoded H.264 stream with your audio into a clean MP4 with <code>+faststart</code>, ready to upload anywhere.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🌐</div>
+      <div class="feature-title">Browser-based UI</div>
+      <div class="feature-desc">The entire workflow lives in a local web app. No GUI framework, no Electron — just Node.js serving a fast, keyboard-friendly interface.</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<section class="how-wrap" id="how-it-works">
+  <div class="section" style="padding-bottom:40px">
+    <div class="section-label">Architecture</div>
+    <h2 class="section-title">How it works</h2>
+    <p class="section-sub">A tight pipeline from browser to file — no temp video files, no re-encoding.</p>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-content">
+          <h4>Local HTTP server + Puppeteer launch</h4>
+          <p>Node.js starts a local server and opens a headless Chromium instance via Puppeteer. The browser loads the render page with butterchurn initialized and ready.</p>
+          <div style="margin-top:8px"><span class="tech-pill">Node.js</span><span class="tech-pill">Puppeteer</span><span class="tech-pill">HTTP server</span></div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-content">
+          <h4>WebGL2 visualization + WebCodecs encoding</h4>
+          <p>Each frame is rendered by butterchurn on a WebGL2 canvas, then captured and passed to the WebCodecs <code>VideoEncoder</code> for hardware H.264 encoding in the browser process.</p>
+          <div style="margin-top:8px"><span class="tech-pill">butterchurn</span><span class="tech-pill">WebGL2</span><span class="tech-pill">WebCodecs</span><span class="tech-pill">H.264</span></div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-content">
+          <h4>Encoded chunks streamed to Node</h4>
+          <p>Encoded H.264 chunks are POSTed directly to the Node server as binary data — no disk writes, no temp files. The server pipes them straight to ffmpeg stdin.</p>
+          <div style="margin-top:8px"><span class="tech-pill">HTTP POST</span><span class="tech-pill">binary stream</span></div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-content">
+          <h4>ffmpeg mux → MP4 output</h4>
+          <p>ffmpeg muxes the video stream with the WAV audio into an MKV container, then remuxes to MP4 with <code>+faststart</code>. The output file is ready in your browser for download.</p>
+          <div style="margin-top:8px"><span class="tech-pill">ffmpeg</span><span class="tech-pill">MKV → MP4</span><span class="tech-pill">faststart</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<section class="section" id="download">
+  <div class="section-label">Download</div>
+  <h2 class="section-title">Get milkvid</h2>
+  <p class="section-sub">Grab the latest binary for your platform. Requires ffmpeg in PATH.</p>
+  <div id="dl-version"></div>
+  <div class="dl-grid" id="dl-grid">
+    <div style="color:var(--text-muted);font-size:13px;padding:8px 0">Loading latest release…</div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<section class="section" id="getting-started">
+  <div class="section-label">Getting started</div>
+  <h2 class="section-title">Up and running in minutes</h2>
+  <p class="section-sub">Or clone and run from source with Node.js 18+.</p>
+  <div class="steps-list">
+    <div class="step"><div class="step-n">1</div><div class="step-text"><strong>Download the binary</strong>Pick your platform above and download the executable alongside your <code>presets/</code> and <code>thumbnails/</code> folders.</div></div>
+    <div class="step"><div class="step-n">2</div><div class="step-text"><strong>Run it</strong>Double-click the binary or run it from your terminal. A browser window opens automatically at <code>localhost:3000</code>.</div></div>
+    <div class="step"><div class="step-n">3</div><div class="step-text"><strong>Pick a preset</strong>Use the search box to filter through 16,000+ presets. Click one to select it — a preview thumbnail shows the visual style.</div></div>
+    <div class="step"><div class="step-n">4</div><div class="step-text"><strong>Drop in audio</strong>Drag and drop a <code>.wav</code> file into the audio zone, or click to browse.</div></div>
+    <div class="step"><div class="step-n">5</div><div class="step-text"><strong>Render</strong>Hit Render. Progress updates in realtime. When done, download your MP4.</div></div>
+  </div>
+  <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Or run from source:</p>
+  <pre><span class="dim"># clone and install</span>
+git clone https://github.com/AnEntrypoint/milkvid
+cd milkvid
+npm install
+
+<span class="dim"># start</span>
+node server.js</pre>
+</section>
+
+<footer>
+  <p>milkvid — built with <a href="https://github.com/jberg/butterchurn" target="_blank">butterchurn</a>, <a href="https://www.w3.org/TR/webcodecs/" target="_blank">WebCodecs</a>, and <a href="https://ffmpeg.org" target="_blank">ffmpeg</a> &nbsp;·&nbsp; <a href="https://github.com/AnEntrypoint/milkvid" target="_blank">GitHub</a></p>
+</footer>
+
+<script>
 var REPO = 'AnEntrypoint/milkvid';
 var PLATFORMS = [
-  { key: 'windows', icon: '🪟', label: 'Windows x64', suffix: 'windows.exe' },
-  { key: 'linux',   icon: '🐧', label: 'Linux x64',   suffix: 'linux' },
-  { key: 'macos',   icon: '🍎', label: 'macOS arm64', suffix: 'macos' }
+  { icon: '🪟', label: 'Windows x64', suffix: 'windows.exe' },
+  { icon: '🐧', label: 'Linux x64',   suffix: 'linux' },
+  { icon: '🍎', label: 'macOS arm64', suffix: 'macos' }
 ];
 
 fetch('https://api.github.com/repos/' + REPO + '/releases/latest')
   .then(function(r) { return r.json(); })
   .then(function(release) {
-    document.getElementById('version').textContent = 'Latest: ' + release.tag_name;
+    document.getElementById('dl-version').textContent = 'Latest release: ' + release.tag_name;
     var assets = release.assets || [];
-    var buttons = PLATFORMS.map(function(p) {
+    var grid = document.getElementById('dl-grid');
+    grid.innerHTML = '';
+    PLATFORMS.forEach(function(p) {
       var asset = assets.find(function(a) { return a.name.endsWith(p.suffix); });
-      if (!asset) return h('div', { class: 'dl-btn', style: 'opacity:.4;cursor:default' },
-        h('span', { class: 'os' }, p.icon),
-        h('span', { class: 'name' }, p.label),
-        h('span', { class: 'size' }, 'not available')
-      );
-      var mb = (asset.size / 1024 / 1024).toFixed(1) + ' MB';
-      return h('a', { class: 'dl-btn', href: asset.browser_download_url, download: asset.name },
-        h('span', { class: 'os' }, p.icon),
-        h('span', { class: 'name' }, p.label),
-        h('span', { class: 'size' }, mb)
-      );
+      var el = document.createElement(asset ? 'a' : 'div');
+      el.className = 'dl-btn';
+      if (asset) { el.href = asset.browser_download_url; el.download = asset.name; }
+      else { el.style.opacity = '.35'; el.style.cursor = 'default'; }
+      el.innerHTML = '<span class="os">' + p.icon + '</span><span class="name">' + p.label + '</span><span class="size">' + (asset ? (asset.size/1024/1024).toFixed(1) + ' MB' : 'not available') + '</span>';
+      grid.appendChild(el);
     });
-    applyDiff(document.getElementById('dl-grid'), h('div', { class: 'dl-grid' }, ...buttons));
   })
   .catch(function() {
-    document.getElementById('dl-grid').textContent = 'See GitHub releases for downloads.';
+    document.getElementById('dl-grid').innerHTML = '<p style="font-size:13px;color:var(--text-muted)">See <a href="https://github.com/AnEntrypoint/milkvid/releases">GitHub releases</a> for downloads.</p>';
   });
 </script>
 </body>
